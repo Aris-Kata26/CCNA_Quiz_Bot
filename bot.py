@@ -2,11 +2,18 @@ import discord
 import requests 
 import json
 import asyncio
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+token = os.getenv("DISCORD_TOKEN")
+
+
 
 # Define intents
 intents = discord.Intents.default()
 intents.message_content = True  # Enable the intent to read message content
-
+P
 # Create client with intents
 client = discord.Client(intents=intents)
 
@@ -92,5 +99,4 @@ async def on_message(message):
             await message.channel.send('❌ Oops. That is not right.')
 
     
-client.run('MTM1NzcyNzg3OTY0NzE5OTI2Mg.G7E9Xn.9_8NknW_BBEdX4M3lnFmcqylYjJ4L2ffVuAHS8')
-
+client.run(token)
