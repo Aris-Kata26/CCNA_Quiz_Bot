@@ -5,4 +5,10 @@ media
 .venv/
 venv/
 key.txt
-echo ".env" >> .gitignore
+.env
+
+# Secret files
+*.env*
+*.secret*
+config.py
+credentials.json
