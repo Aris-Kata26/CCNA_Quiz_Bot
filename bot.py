@@ -15,35 +15,29 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 
 def get_question():
+    url = "https://polar-forest-95759-e6c7774f6065.herokuapp.com/api/random/"
     try:
-        response = requests.get(
-            "https://polar-forest-95759-e6c7774f6065.herokuapp.com/api/random/",
-            timeout=5
-        )
-        response.raise_for_status()
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()  # Raises error for 404/500
         json_data = response.json()
-        
-        # Validate JSON structure
-        if not json_data or not isinstance(json_data, list) or not json_data[0].get('answer'):
-            raise ValueError("Invalid API response format")
-            
+
+        if not json_data or not isinstance(json_data, list):
+            return ("⚠️ Invalid API response.", None)
+
         qs = "📘 **Question:**\n" + json_data[0]['title'] + "\n\n"
         answer = None
-        
+
         for idx, item in enumerate(json_data[0]['answer'], start=1):
             qs += f"{idx}. {item['answer']}\n"
             if item.get('is_correct'):
                 answer = idx
-                
-        if answer is None:
-            raise ValueError("No correct answer found in response")
-            
-        return (qs, answer)
 
-    except Exception as e:
-        print(f"API Error: {str(e)}")
-        return ("⚠️ Could not get a question. Please try again later.", None)
+        return (qs, answer) if answer else ("⚠️ No correct answer found.", None)
 
+    except requests.exceptions.RequestException as e:
+        print(f"API Error: {e}")
+        return ("⚠️ Could not fetch question. Try again later.", None)
+    
 @client.event
 async def on_ready():
     print(f'Logged in as {client.user}')
