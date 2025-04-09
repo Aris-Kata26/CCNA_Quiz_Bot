@@ -18,7 +18,7 @@ def get_question():
 
     try:
         # Try sending a GET request to the Django API (local server)
-        response = requests.get("http://127.0.0.1:8000/api/random/", timeout=5)
+        response = requests.get("http://polar-forest-95759.heroku.com/random/", timeout=5)
         
         # Raise an error if the response returned a bad HTTP status code
         response.raise_for_status()
