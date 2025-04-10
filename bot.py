@@ -31,7 +31,7 @@ def get_question(level):
         
         # Extract answers
         answer = None
-        for idx, item in enumerate(question_data['answer'], start=1):
+        for idx, item in enumerate(question_data['answers'], start=1):
             qs += f"{idx}. {item['answer']}\n"
             if item.get('is_correct'):
                 answer = idx

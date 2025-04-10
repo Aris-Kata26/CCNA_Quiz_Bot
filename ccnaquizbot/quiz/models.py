@@ -16,7 +16,6 @@ class Question(models.Model):
     is_active = models.BooleanField(_("Is Active"), default=True)
     created_at = models.DateTimeField(_("Created"), auto_now=False, auto_now_add=True)
     updated_at = models.DateTimeField(_("Updated"), auto_now=True, auto_now_add=False)
-    explanation = models.TextField(_("Explanation"), blank=True, null=True)
     image = models.ImageField(_("Question Image"), upload_to='questions/images/', blank=True, null=True)
 
     def __str__(self):
@@ -26,6 +25,7 @@ class Answer(models.Model):
     question = models.ForeignKey(Question, related_name='answers', on_delete=models.CASCADE)
     answer = models.CharField(_("Answer"), max_length=500)
     is_correct = models.BooleanField(_("Correct Answer"), default=False)
+    explanation = models.TextField(_("Explanation"), blank=True, null=True)
     is_active = models.BooleanField(_("Is Active"), default=True)
     created_at = models.DateTimeField(_("Created"), auto_now=False, auto_now_add=True)
     updated_at = models.DateTimeField(_("Updated"), auto_now=True, auto_now_add=False)

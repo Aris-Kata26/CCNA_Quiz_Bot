@@ -4,18 +4,17 @@ from .models import Question, Answer
 class AnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Answer
-        fields = ['answer', 'is_correct']
+        fields = ['answer', 'is_correct', 'explanation']
         extra_kwargs = {
             'answer': {'label': 'Answer'},
             'is_correct': {'label': 'Correct Answer'},
         }
 
 class QuestionSerializer(serializers.ModelSerializer):
-    answers = AnswerSerializer(many=True)  # No need for source='answers' here if it's a direct relationship
+    answers = AnswerSerializer(many=True)  # This will serialize all answers with explanations
     ccna_level_display = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
     points = serializers.IntegerField(required=False)
-    explanation = serializers.CharField(required=False, allow_blank=True)
     additional_metadata = serializers.DictField(required=False, allow_null=True)
 
     class Meta:
@@ -26,7 +25,6 @@ class QuestionSerializer(serializers.ModelSerializer):
             'ccna_level_display',
             'image_url',
             'points',
-            'explanation',
             'additional_metadata',
         ]
         extra_kwargs = {
@@ -34,9 +32,11 @@ class QuestionSerializer(serializers.ModelSerializer):
         }
 
     def get_ccna_level_display(self, obj):
+       # Use the method to get the display value for the ccna_level  
         return obj.get_ccna_level_display()
 
     def get_image_url(self, obj):
+         # Build the absolute URL for the image if it exists
         request = self.context.get('request')
         if obj.image and request:
             return request.build_absolute_uri(obj.image.url)
