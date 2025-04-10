@@ -29,12 +29,16 @@ def get_question(level):
         question_data = json_data[0]  # Assuming the first item in the list is the question
         qs = f"📘 **Question:**\n{question_data['title']}\n\n"
         
+
+
         # Extract answers
         answer = None
         for idx, item in enumerate(question_data['answers'], start=1):
             qs += f"{idx}. {item['answer']}\n"
             if item.get('is_correct'):
                 answer = idx
+
+
 
         # Include additional metadata (points, explanation, etc.)
         points = question_data.get('points', None)
