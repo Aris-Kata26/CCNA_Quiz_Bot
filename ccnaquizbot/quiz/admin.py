@@ -1,40 +1,39 @@
 from django.contrib import admin
+from .models import Question, Answer
 
-# Register your models here.
-from . import models
+class AnswerInline(admin.TabularInline):
+    model = Answer
+    extra = 1
+    fields = ['answer', 'is_correct', 'is_active']
+    readonly_fields = ['created_at', 'updated_at']
 
-class AnswerInlineModel(admin.TabularInline):
-    model = models.Answer
-    fields = [
-        'answer', 
-        'is_correct',
-        ]
-
-@admin.register(models.Question)
+@admin.register(Question)
 
 class QuestionAdmin(admin.ModelAdmin):
     fields = [
         'title',
         'points',
-        'difficulty',
-        ]
+        'ccna_level',
+        'explanation',
+        'image',
+        'is_active',
+        'created_at',
+        'updated_at',
+    ]
     list_display = [
-        'title', 
-        'updated_at'
-        ]
-    inlines = [
-        AnswerInlineModel, 
-        ] 
-
-
-
-
-
-@admin.register(models.Answer)
-
-class AnswerAdmin(admin.ModelAdmin):
-    list_display = [
-        'answer', 
-        'is_correct', 
-        'question'
-        ]
+        'title',
+        'ccna_level',
+        'points',
+        'is_active',
+        'updated_at',
+    ]
+    list_filter = [
+        'ccna_level',
+        'is_active',
+    ]
+    search_fields = [
+        'title',
+        'explanation',
+    ]
+    readonly_fields = ['created_at', 'updated_at']
+    inlines = [AnswerInline]

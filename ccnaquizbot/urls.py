@@ -16,9 +16,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from .quiz.views import RandomQuestion
+from .quiz.views import get_ccna_question
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/random/', RandomQuestion.as_view(), name='random'),
+    path('api/random/', get_ccna_question, name='random'),
 ]
