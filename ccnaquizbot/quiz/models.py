@@ -22,7 +22,7 @@ class Question(models.Model):
         return self.title
 
 class Answer(models.Model):
-    question = models.ForeignKey(Question, related_name='answers', on_delete=models.CASCADE)
+    question = models.ForeignKey(Question, related_name='answer', on_delete=models.CASCADE)
     answer = models.CharField(_("Answer"), max_length=500)
     is_correct = models.BooleanField(_("Correct Answer"), default=False)
     explanation = models.TextField(_("Explanation"), blank=True, null=True)
