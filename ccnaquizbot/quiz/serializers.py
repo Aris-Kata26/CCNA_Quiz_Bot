@@ -4,32 +4,33 @@ from .models import Question, Answer
 class AnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Answer
-        fields = ['answer', 'is_correct', 'explanation']
+        fields = ['id','answer', 'is_correct', 'explanation']
         extra_kwargs = {
             'answer': {'label': 'Answer'},
             'is_correct': {'label': 'Correct Answer'},
         }
 
 class QuestionSerializer(serializers.ModelSerializer):
-    answer = AnswerSerializer(many=True)  # This will serialize all answers with explanations
+    answers = AnswerSerializer(many=True, read_only=True)  # This will serialize all answers with explanations
     ccna_level_display = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
     points = serializers.IntegerField(required=False)
-    additional_metadata = serializers.DictField(required=False, allow_null=True)
 
     class Meta:
         model = Question
         fields = [
+            'id',
             'title',
-            'answer',
-            'answers',
-            'ccna_level_display',
-            'image_url',
             'points',
-            'additional_metadata',
+            'ccna_level',
+            'ccna_level_display',
+            'answers',
+            'image_url',
+            'is_active'
         ]
         extra_kwargs = {
             'title': {'label': 'Title'},
+            'points': {'required': False}
         }
 
     def get_ccna_level_display(self, obj):

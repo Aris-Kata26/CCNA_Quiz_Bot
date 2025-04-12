@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils.translation import gettext as _
+from django.core.exceptions import ValidationError
 
 class Question(models.Model):
     LEVEL = (
@@ -11,24 +12,61 @@ class Question(models.Model):
     )
     
     title = models.CharField(_("title"), max_length=500)
-    points = models.SmallIntegerField(_("points"))
+    points = models.SmallIntegerField(_("points"), default=1)
     ccna_level = models.IntegerField(_("CCNA Level"), choices=LEVEL, default=0)
     is_active = models.BooleanField(_("Is Active"), default=True)
     created_at = models.DateTimeField(_("Created"), auto_now=False, auto_now_add=True)
     updated_at = models.DateTimeField(_("Updated"), auto_now=True, auto_now_add=False)
-    image = models.ImageField(_("Question Image"), upload_to='questions/images/', blank=True, null=True)
+    image = models.ImageField(_("Question Image"), upload_to='questions/images/%Y/%m/%d/', blank=True, null=True)
+
+    class Meta:
+        verbose_name = _("Question")
+        verbose_name_plural = _("Questions")
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['ccna_level']),
+            models.Index(fields=['is_active']),
+        ]
 
     def __str__(self):
         return self.title
+    
+    def clean(self):
+        """Validate model before saving"""
+        if self.points < 0:
+            raise ValidationError(_("Points cannot be negative"))
+        
+        # Ensure at least one correct answer exists (optional)
+        if self.pk and not self.answers.filter(is_correct=True).exists():
+            raise ValidationError(_("Question must have at least one correct answer"))
+
 
 class Answer(models.Model):
-    question = models.ForeignKey(Question, related_name='answer', on_delete=models.CASCADE)
+    question = models.ForeignKey(Question, related_name='answers', on_delete=models.CASCADE, verbose_name=_("Question"))
     answer = models.CharField(_("Answer"), max_length=500)
     is_correct = models.BooleanField(_("Correct Answer"), default=False)
     explanation = models.TextField(_("Explanation"), blank=True, null=True)
     is_active = models.BooleanField(_("Is Active"), default=True)
     created_at = models.DateTimeField(_("Created"), auto_now=False, auto_now_add=True)
     updated_at = models.DateTimeField(_("Updated"), auto_now=True, auto_now_add=False)
-    
+
+
+    class Meta:
+        verbose_name = _("Answer")
+        verbose_name_plural = _("Answers")
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['question', 'answer'],
+                name='unique_answer_per_question'
+            )
+        ]
+        
     def __str__(self):
-        return self.answer
+        return f"{self.answer[:50]}..." if len(self.answer) > 50 else self.answer
+
+    def clean(self):
+        """Validate model before saving"""
+        # Prevent marking all answers as correct (optional)
+        if self.is_correct and self.question.answers.filter(is_correct=True).exclude(pk=self.pk).exists():
+            raise ValidationError(_("Another correct answer already exists for this question"))

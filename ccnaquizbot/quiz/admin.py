@@ -4,22 +4,20 @@ from .models import Question, Answer
 class AnswerInline(admin.TabularInline):
     model = Answer
     extra = 1
-    fields = ['answer', 'is_correct', 'is_active']
+    fields = ['answer', 'is_correct', 'explanation', 'is_active']  # Added explanation here
     readonly_fields = ['created_at', 'updated_at']
 
 @admin.register(Question)
-
 class QuestionAdmin(admin.ModelAdmin):
     fields = [
         'title',
         'points',
         'ccna_level',
-        'explanation',
         'image',
         'is_active',
         'created_at',
         'updated_at',
-    ]
+    ]  # Removed 'explanation' from here
     list_display = [
         'title',
         'ccna_level',
@@ -33,7 +31,7 @@ class QuestionAdmin(admin.ModelAdmin):
     ]
     search_fields = [
         'title',
-        'explanation',
+        'answers__explanation',  # Changed to search through related answers
     ]
     readonly_fields = ['created_at', 'updated_at']
     inlines = [AnswerInline]
