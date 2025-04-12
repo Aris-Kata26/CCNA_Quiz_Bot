@@ -21,7 +21,7 @@ class QuestionSerializer(serializers.ModelSerializer):
         model = Question
         fields = [
             'title',
-            'answers',
+            'answer',
             'ccna_level_display',
             'image_url',
             'points',
