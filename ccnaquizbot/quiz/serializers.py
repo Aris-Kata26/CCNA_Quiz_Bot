@@ -4,14 +4,14 @@ from .models import Question, Answer
 class AnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Answer
-        fields = ['id','answer', 'is_correct', 'explanation']
+        fields = ['id', 'answer', 'is_correct', 'explanation']
         extra_kwargs = {
             'answer': {'label': 'Answer'},
             'is_correct': {'label': 'Correct Answer'},
         }
 
 class QuestionSerializer(serializers.ModelSerializer):
-    answers = AnswerSerializer(many=True, read_only=True)  # This will serialize all answers with explanations
+    answers = AnswerSerializer(many=True, read_only=True)  # Get related answers
     ccna_level_display = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
     points = serializers.IntegerField(required=False)
@@ -23,22 +23,28 @@ class QuestionSerializer(serializers.ModelSerializer):
             'title',
             'points',
             'ccna_level',
-            'ccna_level_display',
-            'answers',
             'image_url',
-            'is_active'
+            'is_active',
+            'answers',  # Include answers in the serialized data
+            'created_at', 
+            'updated_at',
         ]
         extra_kwargs = {
             'title': {'label': 'Title'},
             'points': {'required': False}
         }
 
+    def get_answers(self, obj):
+        # Ensure there are answers related to the question and filter for active ones
+        answers = obj.answers.filter(is_active=True)
+        # If no answers exist, return an empty list to avoid errors
+        return AnswerSerializer(answers, many=True).data if answers else []
+
     def get_ccna_level_display(self, obj):
-       # Use the method to get the display value for the ccna_level  
-        return obj.get_ccna_level_display()
+        return obj.get_ccna_level_display()  # Return level display for better readability
 
     def get_image_url(self, obj):
-         # Build the absolute URL for the image if it exists
+        # Ensure the 'request' context is passed for building image URLs
         request = self.context.get('request')
         if obj.image and request:
             return request.build_absolute_uri(obj.image.url)

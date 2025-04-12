@@ -19,19 +19,15 @@ def get_question(level):
     print(f"DEBUG - Attempting to call URL: {url}") 
     try:
         response = requests.get(url, timeout=5)
-        response.raise_for_status()  # Raises error for 404/500
+        response.raise_for_status()
         json_data = response.json()
 
         if not json_data or not isinstance(json_data, list):
             return ("⚠️ Invalid API response.", None)
 
-        # Extract question title and metadata
-        question_data = json_data[0]  # Assuming the first item in the list is the question
+        question_data = json_data[0]
         qs = f"📘 **Question:**\n{question_data['title']}\n\n"
         
-
-
-        # Extract answers
         answer = None
         for idx, item in enumerate(question_data['answers'], start=1):
             qs += f"{idx}. {item['answer']}\n"

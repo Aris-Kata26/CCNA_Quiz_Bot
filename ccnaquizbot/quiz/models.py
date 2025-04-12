@@ -2,13 +2,13 @@ from django.db import models
 from django.utils.translation import gettext as _
 from django.core.exceptions import ValidationError
 
+# quiz/models.py
 class Question(models.Model):
     LEVEL = (
         (0, _('Any')),
         (1, _('Level 1')),  # CCNA1
         (2, _('Level 2')),  # CCNA2
         (3, _('Level 3'))  # CCNA3
-       
     )
     
     title = models.CharField(_("title"), max_length=500)
@@ -41,6 +41,7 @@ class Question(models.Model):
             raise ValidationError(_("Question must have at least one correct answer"))
 
 
+# quiz/models.py
 class Answer(models.Model):
     question = models.ForeignKey(Question, related_name='answers', on_delete=models.CASCADE, verbose_name=_("Question"))
     answer = models.CharField(_("Answer"), max_length=500)
@@ -49,7 +50,6 @@ class Answer(models.Model):
     is_active = models.BooleanField(_("Is Active"), default=True)
     created_at = models.DateTimeField(_("Created"), auto_now=False, auto_now_add=True)
     updated_at = models.DateTimeField(_("Updated"), auto_now=True, auto_now_add=False)
-
 
     class Meta:
         verbose_name = _("Answer")
