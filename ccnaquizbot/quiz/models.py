@@ -2,13 +2,12 @@ from django.db import models
 from django.utils.translation import gettext as _
 from django.core.exceptions import ValidationError
 
-# quiz/models.py
 class Question(models.Model):
     LEVEL = (
         (0, _('Any')),
         (1, _('Level 1')),  # CCNA1
         (2, _('Level 2')),  # CCNA2
-        (3, _('Level 3'))  # CCNA3
+        (3, _('Level 3'))   # CCNA3
     )
     
     title = models.CharField(_("title"), max_length=500)
@@ -40,8 +39,6 @@ class Question(models.Model):
         if self.pk and not self.answers.filter(is_correct=True).exists():
             raise ValidationError(_("Question must have at least one correct answer"))
 
-
-# quiz/models.py
 class Answer(models.Model):
     question = models.ForeignKey(Question, related_name='answers', on_delete=models.CASCADE, verbose_name=_("Question"))
     answer = models.CharField(_("Answer"), max_length=500)
@@ -68,5 +65,6 @@ class Answer(models.Model):
     def clean(self):
         """Validate model before saving"""
         # Prevent marking all answers as correct (optional)
-        if self.is_correct and self.question.answers.filter(is_correct=True).exclude(pk=self.pk).exists():
-            raise ValidationError(_("Another correct answer already exists for this question"))
+        if self.is_correct and self.question and self.question.pk:
+            if self.question.answers.filter(is_correct=True).exclude(pk=self.pk).exists():
+                raise ValidationError(_("Another correct answer already exists for this question"))
