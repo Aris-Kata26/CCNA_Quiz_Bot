@@ -12,7 +12,7 @@ class AnswerSerializer(serializers.ModelSerializer):
 
 class QuestionSerializer(serializers.ModelSerializer):
     answers = AnswerSerializer(many=True, read_only=True)  # Get related answers
-    ccna_level_display = serializers.CharField(source='get_ccna_level_display', read_only=True)
+    ccna_level_display = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
     points = serializers.IntegerField(required=False)
 
@@ -23,7 +23,6 @@ class QuestionSerializer(serializers.ModelSerializer):
             'title',
             'points',
             'ccna_level',
-            'ccna_level_display'
             'image',
             'image_url',
             'is_active',
