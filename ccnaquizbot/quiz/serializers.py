@@ -11,7 +11,7 @@ class AnswerSerializer(serializers.ModelSerializer):
         }
 
 class QuestionSerializer(serializers.ModelSerializer):
-    answers = AnswerSerializer(many=True)  # This will serialize all answers with explanations
+    answer = AnswerSerializer(many=True)  # This will serialize all answers with explanations
     ccna_level_display = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
     points = serializers.IntegerField(required=False)
@@ -22,6 +22,7 @@ class QuestionSerializer(serializers.ModelSerializer):
         fields = [
             'title',
             'answer',
+            'answers',
             'ccna_level_display',
             'image_url',
             'points',
