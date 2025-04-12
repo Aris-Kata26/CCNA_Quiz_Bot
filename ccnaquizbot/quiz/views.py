@@ -24,7 +24,7 @@ def get_ccna_question(request):
         ccna_level=level,
         is_active=True
     ).prefetch_related(
-        Prefetch('answer', queryset=Answer.objects.filter(is_active=True))
+        Prefetch('answers', queryset=Answer.objects.filter(is_active=True))
     ).order_by('?').first()
 
     # If no question is found, return a 404 error
