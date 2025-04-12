@@ -24,6 +24,7 @@ class QuestionSerializer(serializers.ModelSerializer):
             'points',
             'ccna_level',
             'ccna_level_display'
+            'image',
             'image_url',
             'is_active',
             'answers', 
