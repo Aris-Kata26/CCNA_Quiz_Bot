@@ -26,7 +26,7 @@ class QuestionSerializer(serializers.ModelSerializer):
             'ccna_level_display'
             'image_url',
             'is_active',
-            'answers',  # Include answers in the serialized data
+            'answers', 
             'created_at', 
             'updated_at',
         ]
