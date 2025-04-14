@@ -1,6 +1,10 @@
 from rest_framework import serializers
 from .models import Question, Answer
 import os
+import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 class AnswerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -40,19 +44,36 @@ class QuestionSerializer(serializers.ModelSerializer):
         return obj.get_ccna_level_display()
 
     def get_image_url(self, obj):
-        if obj.image and hasattr(obj.image, 'url'):
-            try:
-                raw_url = str(obj.image.url)
-                print(f"Raw image URL for question {obj.id}: {raw_url}")  # Debug log
-                # Ensure URL is absolute
-                if not raw_url.startswith(('http://', 'https://')):
-                    raw_url = f"https:{raw_url}" if raw_url.startswith('//') else f"https://res.cloudinary.com/{os.environ.get('CLOUDINARY_CLOUD_NAME')}/image/upload/{raw_url}"
-                # Add Cloudinary optimizations
-                optimized_url = raw_url.replace('/upload/', '/upload/q_auto,f_auto/')
-                print(f"Optimized URL for question {obj.id}: {optimized_url}")  # Debug log
-                return optimized_url
-            except Exception as e:
-                print(f"Error processing image URL for question {obj.id}: {e}")
-                return None
-        print(f"No image for question {obj.id}")  # Debug log
-        return None
+        try:
+            if obj.image:
+                image_str = str(obj.image)
+                logger.debug(f"Raw image field for question {obj.id}: {image_str}")
+                # Handle legacy ImageField URLs
+                if image_str.startswith(('http://', 'https://')):
+                    # Extract public ID if possible
+                    match = re.search(r'/image/upload/[^/]+/(.+?)(?:\.\w+)?$', image_str)
+                    if match:
+                        public_id = match.group(1)
+                        logger.debug(f"Extracted public ID: {public_id}")
+                        optimized_url = f"https://res.cloudinary.com/{os.environ.get('CLOUDINARY_CLOUD_NAME')}/image/upload/q_auto,f_auto/{public_id}.jpg"
+                    else:
+                        optimized_url = image_str.replace('/upload/', '/upload/q_auto,f_auto/')
+                    logger.debug(f"Legacy URL optimized: {optimized_url}")
+                    return optimized_url
+                # Handle CloudinaryField public ID
+                elif hasattr(obj.image, 'url'):
+                    raw_url = str(obj.image.url)
+                    logger.debug(f"Cloudinary raw URL: {raw_url}")
+                    if not raw_url.startswith(('http://', 'https://')):
+                        raw_url = f"https://res.cloudinary.com/{os.environ.get('CLOUDINARY_CLOUD_NAME')}/image/upload/{raw_url}"
+                    optimized_url = raw_url.replace('/upload/', '/upload/q_auto,f_auto/')
+                    logger.debug(f"Optimized URL: {optimized_url}")
+                    return optimized_url
+                else:
+                    logger.warning(f"Invalid image field for question {obj.id}: {image_str}")
+                    return None
+            logger.debug(f"No image for question {obj.id}")
+            return None
+        except Exception as e:
+            logger.error(f"Error processing image URL for question {obj.id}: {str(e)}")
+            return None
