@@ -31,17 +31,36 @@ class Question(models.Model):
     def __str__(self):
         return self.title
     
+    def get_original_image_url(self):
+        """Returns the exact Cloudinary URL needed for Discord"""
+        if not self.image:
+            return None
+            
+        if isinstance(self.image, str) and self.image.startswith('http'):
+            return self.image
+            
+        if hasattr(self.image, 'version'):
+            return (
+                f"https://res.cloudinary.com/{self.image.metadata['cloud_name']}/"
+                f"image/upload/{self.image.version}/{self.image.public_id}.{self.image.format}"
+            )
+        return self.image.url if hasattr(self.image, 'url') else None
+    
     def clean(self):
         """Validate model before saving"""
         if self.points < 0:
             raise ValidationError(_("Points cannot be negative"))
         
-        # Ensure at least one correct answer exists
         if self.pk and not self.answers.filter(is_correct=True).exists():
             raise ValidationError(_("Question must have at least one correct answer"))
 
 class Answer(models.Model):
-    question = models.ForeignKey(Question, related_name='answers', on_delete=models.CASCADE, verbose_name=_("Question"))
+    question = models.ForeignKey(
+        Question, 
+        related_name='answers', 
+        on_delete=models.CASCADE, 
+        verbose_name=_("Question")
+    )
     answer = models.CharField(_("Answer"), max_length=500)
     is_correct = models.BooleanField(_("Correct Answer"), default=False)
     explanation = models.TextField(_("Explanation"), blank=True, null=True)
@@ -64,8 +83,8 @@ class Answer(models.Model):
         return f"{self.answer[:50]}..." if len(self.answer) > 50 else self.answer
 
     def clean(self):
-        """Validate model before saving"""
-        # Prevent marking all answers as correct
-        if self.is_correct and self.question and self.question.pk:
-            if self.question.answers.filter(is_correct=True).exclude(pk=self.pk).exists():
-                raise ValidationError(_("Another correct answer already exists for this question"))
+        if (self.is_correct and 
+            self.question and 
+            self.question.pk and
+            self.question.answers.filter(is_correct=True).exclude(pk=self.pk).exists()):
+            raise ValidationError(_("Another correct answer already exists for this question"))
