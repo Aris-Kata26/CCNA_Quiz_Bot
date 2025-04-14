@@ -8,18 +8,16 @@ from django.db.models import Prefetch
 def get_ccna_question(request):
     level = request.GET.get('level')
 
-    # Check if 'level' parameter is missing
     if not level:
         return Response({"error": "Missing CCNA level"}, status=400)
 
     try:
-        # Try to convert the level to an integer
         level = int(level)
+        if level not in [1, 2, 3]:
+            return Response({"error": "Level must be 1, 2, or 3"}, status=400)
     except ValueError:
-        # If conversion fails, return an error response
         return Response({"error": "Invalid level format"}, status=400)
 
-    # Fetch the question with related answers
     question = Question.objects.filter(
         ccna_level=level,
         is_active=True
@@ -27,12 +25,18 @@ def get_ccna_question(request):
         Prefetch('answers', queryset=Answer.objects.filter(is_active=True))
     ).order_by('?').first()
 
-    # If no question is found, return a 404 error
     if not question:
         return Response({"error": "No questions found for this level"}, status=404)
 
-    # Serialize the question data along with answers
-    serializer = QuestionSerializer(question, context={'request': request})
+    # Debugging output
+    if question.image:
+        print(f"Cloudinary URL: {question.image.url}")
+        print(f"Image field: {question.image}")
+        print(f"Image name: {question.image.name}")
 
-    # Return the serialized data as a response
+    serializer = QuestionSerializer(question, context={
+        'request': request,
+        'use_cloudinary': True
+    })
+
     return Response(serializer.data)
