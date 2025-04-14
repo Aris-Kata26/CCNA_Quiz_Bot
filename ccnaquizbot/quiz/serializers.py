@@ -55,9 +55,9 @@ class QuestionSerializer(serializers.ModelSerializer):
                     if match:
                         public_id = match.group(1)
                         logger.debug(f"Extracted public ID: {public_id}")
-                        optimized_url = f"https://res.cloudinary.com/{os.environ.get('CLOUDINARY_CLOUD_NAME')}/image/upload/q_auto,f_auto/{public_id}.jpg"
+                        optimized_url = f"https://res.cloudinary.com/{os.environ.get('CLOUDINARY_CLOUD_NAME')}/image/upload/v1744636830/{public_id}.jpg"
                     else:
-                        optimized_url = image_str.replace('/upload/', '/upload/q_auto,f_auto/')
+                        optimized_url = image_str.replace('/upload/', '/upload/v1744636830/')
                     logger.debug(f"Legacy URL optimized: {optimized_url}")
                     return optimized_url
                 # Handle CloudinaryField public ID
@@ -66,7 +66,7 @@ class QuestionSerializer(serializers.ModelSerializer):
                     logger.debug(f"Cloudinary raw URL: {raw_url}")
                     if not raw_url.startswith(('http://', 'https://')):
                         raw_url = f"https://res.cloudinary.com/{os.environ.get('CLOUDINARY_CLOUD_NAME')}/image/upload/{raw_url}"
-                    optimized_url = raw_url.replace('/upload/', '/upload/q_auto,f_auto/')
+                    optimized_url = raw_url.replace('/upload/', '/upload/v1744636830/')
                     logger.debug(f"Optimized URL: {optimized_url}")
                     return optimized_url
                 else:
