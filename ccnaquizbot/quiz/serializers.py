@@ -1,7 +1,5 @@
 from rest_framework import serializers
 from .models import Question, Answer
-import os
-import re
 import logging
 
 logger = logging.getLogger(__name__)
@@ -44,49 +42,51 @@ class QuestionSerializer(serializers.ModelSerializer):
         return obj.get_ccna_level_display()
 
     def get_image_url(self, obj):
+        """
+        Returns the exact Cloudinary URL needed for Discord embeds
+        - Preserves version numbers (v1744625190)
+        - Maintains original URL structure
+        - Handles both direct URLs and public IDs
+        """
         try:
             if not obj.image:
                 logger.debug(f"No image for question {obj.id}")
                 return None
 
-            image_str = str(obj.image).strip()
-            logger.debug(f"Raw image field for question {obj.id}: {image_str}")
+            # Get the stored image value
+            image_value = str(obj.image).strip()
+            
+            # Case 1: Already a full URL (from admin paste)
+            if image_value.startswith(('http://', 'https://')):
+                if 'res.cloudinary.com' in image_value:
+                    # Ensure consistent lowercase 'aristide' in URL
+                    normalized_url = image_value.replace(
+                        'res.cloudinary.com/Aristide/',
+                        'res.cloudinary.com/aristide/'
+                    )
+                    logger.debug(f"Using direct Cloudinary URL: {normalized_url}")
+                    return normalized_url
+                # Non-Cloudinary URL (unlikely in your case)
+                return image_value
 
-            # Validate image field is not empty or invalid
-            if not image_str or image_str in ['res', '/']:
-                logger.warning(f"Invalid image field for question {obj.id}: {image_str}")
-                return None
+            # Case 2: Cloudinary public ID (from file upload)
+            if hasattr(obj, 'get_cloudinary_url'):
+                url = obj.get_cloudinary_url()
+                logger.debug(f"Using get_cloudinary_url(): {url}")
+                return url
 
-            # Check if the image field contains a full Cloudinary URL
-            if image_str.startswith(('http://', 'https://')):
-                # Ensure it's a Cloudinary URL
-                if 'res.cloudinary.com' in image_str:
-                    # Handle URLs with or without version number
-                    if '/upload/v' in image_str:
-                        optimized_url = image_str.replace('/upload/v', '/upload/q_auto,f_auto/v')
-                    else:
-                        optimized_url = image_str.replace('/upload/', '/upload/q_auto,f_auto/')
-                    logger.debug(f"Optimized Cloudinary URL: {optimized_url}")
-                    return optimized_url
-                else:
-                    logger.debug(f"Non-Cloudinary URL for question {obj.id}: {image_str}")
-                    return image_str  # Return as-is if not Cloudinary
+            # Fallback: Construct URL from public ID (legacy support)
+            cloud_name = 'aristide'  # Hardcoded to match your requirements
+            if '/' not in image_value:  # Basic public ID validation
+                constructed_url = (
+                    f"https://res.cloudinary.com/{cloud_name}/"
+                    f"image/upload/{image_value}"
+                )
+                logger.debug(f"Constructed URL from public ID: {constructed_url}")
+                return constructed_url
 
-            # Handle CloudinaryField public ID (e.g., '5.ccna2_vu1frn')
-            cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME')
-            if not cloud_name:
-                logger.error("CLOUDINARY_CLOUD_NAME environment variable not set")
-                return None
-
-            # Validate public ID: no slashes, not empty, reasonable length
-            if '/' in image_str or len(image_str) < 3:
-                logger.warning(f"Invalid public ID for question {obj.id}: {image_str}")
-                return None
-
-            # Construct URL from public ID
-            optimized_url = f"https://res.cloudinary.com/{cloud_name}/image/upload/q_auto,f_auto/{image_str}"
-            logger.debug(f"Constructed Cloudinary URL from public ID: {optimized_url}")
-            return optimized_url
+            logger.warning(f"Unrecognized image format for question {obj.id}: {image_value}")
+            return None
 
         except Exception as e:
             logger.error(f"Error processing image URL for question {obj.id}: {str(e)}")

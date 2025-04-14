@@ -2,7 +2,6 @@ from django.db import models
 from django.utils.translation import gettext as _
 from django.core.exceptions import ValidationError
 from cloudinary.models import CloudinaryField
-import os
 import logging
 
 logger = logging.getLogger(__name__)
@@ -39,18 +38,60 @@ class Question(models.Model):
         """Return human-readable CCNA level for serializer"""
         return dict(self.LEVEL).get(self.ccna_level, _('Unknown'))
 
+    def get_original_image_url(self):
+        """
+        Returns the exact Cloudinary URL needed for Discord embeds
+        Handles both manual URLs and CloudinaryField objects
+        """
+        if not self.image:
+            return None
+            
+        # If image contains a full URL (manually entered in admin)
+        if isinstance(self.image, str) and self.image.startswith(('http://', 'https://')):
+            # Normalize URL case
+            normalized_url = self.image.replace(
+                'res.cloudinary.com/Aristide/',
+                'res.cloudinary.com/aristide/'
+            )
+            return normalized_url
+            
+        # For CloudinaryField objects
+        if hasattr(self.image, 'url'):
+            # Return the versioned URL if available
+            if hasattr(self.image, 'version'):
+                return (
+                    f"https://res.cloudinary.com/{self.image.metadata['cloud_name']}/"
+                    f"image/upload/{self.image.version}/{self.image.public_id}.{self.image.format}"
+                )
+            return self.image.url
+            
+        return None
+
     def clean(self):
         """Validate model before saving"""
         if self.points < 0:
             raise ValidationError(_("Points cannot be negative"))
         
-        # Validate image public ID if present
+        # Validate image field
         if self.image:
-            image_str = str(self.image).strip()
-            if not image_str or '/' in image_str or len(image_str) < 3:
-                raise ValidationError(_("Invalid image public ID: must be a valid Cloudinary public ID"))
+            # If it's a string (manual URL entry)
+            if isinstance(self.image, str):
+                if not self.image.startswith('https://res.cloudinary.com/aristide/'):
+                    raise ValidationError(_("Cloudinary URL must be from res.cloudinary.com/aristide"))
+                
+                # Normalize URL case
+                self.image = self.image.replace(
+                    'res.cloudinary.com/Aristide/',
+                    'res.cloudinary.com/aristide/'
+                )
+            
+            # For CloudinaryField objects, validate public_id
+            elif hasattr(self.image, 'public_id'):
+                public_id = str(self.image.public_id).strip()
+                if not public_id or '/' in public_id or len(public_id) < 3:
+                    raise ValidationError(_("Invalid image public ID: must be a valid Cloudinary public ID"))
 
-        # Ensure at least one correct answer when answers exist
+        # Validate answers
         if hasattr(self, 'answers') and self.answers.exists() and not self.answers.filter(is_correct=True).exists():
             raise ValidationError(_("Question must have at least one correct answer"))
 
