@@ -71,7 +71,10 @@ async def on_message(message):
 
         qs, answer, explanation, image_url = get_question(level)
         
-        # Create embed regardless of whether there's an image
+        # Debug print to verify image URL
+        print(f"Image URL received from API: {image_url}")
+        
+        # Create embed
         embed = discord.Embed(
             title="📘 Network Question",
             description=qs,
@@ -79,38 +82,45 @@ async def on_message(message):
         )
         
         # Set author info
-        embed.set_author(
-            name=message.author.display_name,
-            icon_url=message.author.avatar.url if message.author.avatar else None
-        )
+        if message.author.avatar:
+            embed.set_author(
+                name=message.author.display_name,
+                icon_url=message.author.avatar.url
+            )
+        else:
+            embed.set_author(name=message.author.display_name)
         
-        # Add image if available
-        if image_url and isinstance(image_url, str) and image_url.startswith("http"):
+        # Add image if available (with more robust checking)
+        if image_url and isinstance(image_url, str) and image_url.lower().startswith(('http://', 'https://')):
+            print(f"Attempting to embed image: {image_url}")
             embed.set_image(url=image_url)
         
         embed.timestamp = message.created_at
 
         try:
             question_message = await message.channel.send(embed=embed)
+            
+            if answer is None:
+                return
+
+            def check(m):
+                return m.author == message.author and m.content.isdigit() and m.channel == message.channel
+
+            try:
+                guess = await client.wait_for('message', check=check, timeout=30.0)
+                if int(guess.content) == answer:
+                    await message.channel.send('✅ Correct!')
+                else:
+                    await message.channel.send(f'❌ Incorrect. The right answer was {answer}.\n📝 **Explanation:** {explanation}')
+                await question_message.edit(content=f"{qs}\n✅ **Correct Answer:** {answer}")
+            except asyncio.TimeoutError:
+                await message.channel.send('⏰ Timeout!')
+                await question_message.edit(content=f"{qs}\n⏰ **Timed out.** Correct answer was {answer}")
+                
         except discord.errors.HTTPException as e:
             print(f"Discord Embed Error: {e}")
             question_message = await message.channel.send(qs)
-
-        if answer is None:
-            return
-
-        def check(m):
-            return m.author == message.author and m.content.isdigit() and m.channel == message.channel
-
-        try:
-            guess = await client.wait_for('message', check=check, timeout=30.0)
-            if int(guess.content) == answer:
-                await message.channel.send('✅ Correct!')
-            else:
-                await message.channel.send(f'❌ Incorrect. The right answer was {answer}.\n📝 **Explanation:** {explanation}')
-            await question_message.edit(content=f"{qs}\n✅ **Correct Answer:** {answer}")
-        except asyncio.TimeoutError:
-            await message.channel.send('⏰ Timeout!')
-            await question_message.edit(content=f"{qs}\n⏰ **Timed out.** Correct answer was {answer}")
+            
+            # You might want to handle answer checking here too if using plain text
 
 client.run(os.getenv('DISCORD_TOKEN'))
