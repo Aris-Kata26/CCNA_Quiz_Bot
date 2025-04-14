@@ -16,7 +16,7 @@ class Question(models.Model):
     is_active = models.BooleanField(_("Is Active"), default=True)
     created_at = models.DateTimeField(_("Created"), auto_now=False, auto_now_add=True)
     updated_at = models.DateTimeField(_("Updated"), auto_now=True, auto_now_add=False)
-    image = models.ImageField(_("Question Image"), upload_to='questions/images/%Y/%m/%d/', blank=True, null=True)
+    image = models.ImageField(upload_to='questions/', blank=True, null=True)
 
     class Meta:
         verbose_name = _("Question")
