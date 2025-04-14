@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.translation import gettext as _
 from django.core.exceptions import ValidationError
+from cloudinary.models import CloudinaryField
 
 class Question(models.Model):
     LEVEL = (
@@ -16,7 +17,7 @@ class Question(models.Model):
     is_active = models.BooleanField(_("Is Active"), default=True)
     created_at = models.DateTimeField(_("Created"), auto_now=False, auto_now_add=True)
     updated_at = models.DateTimeField(_("Updated"), auto_now=True, auto_now_add=False)
-    image = models.ImageField(upload_to='questions/', blank=True, null=True)
+    image = CloudinaryField(_("image"), blank=True, null=True)
 
     class Meta:
         verbose_name = _("Question")
@@ -35,7 +36,7 @@ class Question(models.Model):
         if self.points < 0:
             raise ValidationError(_("Points cannot be negative"))
         
-        # Ensure at least one correct answer exists (optional)
+        # Ensure at least one correct answer exists
         if self.pk and not self.answers.filter(is_correct=True).exists():
             raise ValidationError(_("Question must have at least one correct answer"))
 
@@ -64,7 +65,7 @@ class Answer(models.Model):
 
     def clean(self):
         """Validate model before saving"""
-        # Prevent marking all answers as correct (optional)
+        # Prevent marking all answers as correct
         if self.is_correct and self.question and self.question.pk:
             if self.question.answers.filter(is_correct=True).exclude(pk=self.pk).exists():
                 raise ValidationError(_("Another correct answer already exists for this question"))

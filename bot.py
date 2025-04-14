@@ -1,8 +1,9 @@
 import discord
-import requests 
+import requests
 import asyncio
 import os
 from dotenv import load_dotenv
+from discord.ext import commands
 
 # Load environment variables
 load_dotenv()
@@ -11,11 +12,12 @@ load_dotenv()
 intents = discord.Intents.default()
 intents.message_content = True
 
-client = discord.Client(intents=intents)
+# Initialize bot with commands
+bot = commands.Bot(command_prefix='$', intents=intents)
 
 def get_question(level):
     url = f"https://polar-forest-95759-e6c7774f6065.herokuapp.com/api/random/?level={level}"
-    print(f"DEBUG - Attempting to call URL: {url}") 
+    print(f"DEBUG - Attempting to call URL: {url}")
     try:
         response = requests.get(url, timeout=5)
         response.raise_for_status()
@@ -38,89 +40,81 @@ def get_question(level):
             print("DEBUG - No correct answer found")
             return ("⚠️ No correct answer found.", None, None, None)
 
-        points = question_data.get('points', None)
+        points = question_data.get('points')
         if points is not None:
             qs += f"\n💡 **Points:** {points}"
 
-        image_url = question_data.get('image_url', None)
+        image_url = question_data.get('image_url')
+        print(f"DEBUG - Image URL from API: {image_url}")  # Debug log
         return (qs, answer, correct_explanation, image_url)
 
     except requests.exceptions.RequestException as e:
         print(f"API Error: {e}")
         return ("⚠️ Could not fetch question. Try again later.", None, None, None)
 
-@client.event
+@bot.event
 async def on_ready():
-    print(f'Logged in as {client.user}')
+    print(f'Logged in as {bot.user}')
 
-@client.event
-async def on_message(message):
-    if message.author == client.user:
+@bot.command(name='ccna')
+async def ccna_quiz(ctx, level: int = None):
+    if level not in [1, 2, 3]:
+        await ctx.send("⚠️ Invalid level. Please specify level 1, 2, or 3. Example: `$ccna 2`")
         return
 
-    if message.content.startswith('$ccna'):
-        command_parts = message.content.split()
-        if len(command_parts) == 2 and command_parts[1].isdigit():
-            level = int(command_parts[1])
-            if level not in [1, 2, 3]:
-                await message.channel.send("⚠️ Invalid level. Please specify level 1, 2, or 3.")
-                return
-        else:
-            await message.channel.send("⚠️ Please specify the CCNA level (1, 2, or 3).")
+    qs, answer, explanation, image_url = get_question(level)
+    
+    # Create embed
+    embed = discord.Embed(
+        title="📘 Network Question",
+        description=qs,
+        color=discord.Color.blue()
+    )
+    
+    # Set author info
+    if ctx.author.avatar:
+        embed.set_author(
+            name=ctx.author.display_name,
+            icon_url=ctx.author.avatar.url
+        )
+    else:
+        embed.set_author(name=ctx.author.display_name)
+    
+    # Add image if available
+    if image_url and isinstance(image_url, str) and image_url.lower().startswith(('http://', 'https://')):
+        print(f"DEBUG - Attempting to embed image: {image_url}")
+        embed.set_image(url=image_url)
+    else:
+        print(f"DEBUG - Skipping image embed: image_url is {image_url}")
+
+    embed.timestamp = ctx.message.created_at
+
+    try:
+        question_message = await ctx.send(embed=embed)
+        
+        if answer is None:
             return
 
-        qs, answer, explanation, image_url = get_question(level)
-        
-        # Debug print to verify image URL
-        print(f"Image URL received from API: {image_url}")
-        
-        # Create embed
-        embed = discord.Embed(
-            title="📘 Network Question",
-            description=qs,
-            color=discord.Color.blue()
-        )
-        
-        # Set author info
-        if message.author.avatar:
-            embed.set_author(
-                name=message.author.display_name,
-                icon_url=message.author.avatar.url
-            )
-        else:
-            embed.set_author(name=message.author.display_name)
-        
-        # Add image if available (with more robust checking)
-        if image_url and isinstance(image_url, str) and image_url.lower().startswith(('http://', 'https://')):
-            print(f"Attempting to embed image: {image_url}")
-            embed.set_image(url=image_url)
-        
-        embed.timestamp = message.created_at
+        def check(m):
+            return m.author == ctx.author and m.content.isdigit() and m.channel == ctx.channel
 
         try:
-            question_message = await message.channel.send(embed=embed)
+            guess = await bot.wait_for('message', check=check, timeout=30.0)
+            if int(guess.content) == answer:
+                await ctx.send('✅ Correct!')
+            else:
+                await ctx.send(f'❌ Incorrect. The right answer was {answer}.\n📝 **Explanation:** {explanation}')
+            # Update embed with correct answer
+            embed.description = f"{qs}\n✅ **Correct Answer:** {answer}"
+            await question_message.edit(embed=embed)
+        except asyncio.TimeoutError:
+            await ctx.send('⏰ Timeout!')
+            # Update embed with timeout message
+            embed.description = f"{qs}\n⏰ **Timed out.** Correct answer was {answer}"
+            await question_message.edit(embed=embed)
             
-            if answer is None:
-                return
+    except discord.errors.HTTPException as e:
+        print(f"Discord Embed Error: {e}")
+        await ctx.send(qs)
 
-            def check(m):
-                return m.author == message.author and m.content.isdigit() and m.channel == message.channel
-
-            try:
-                guess = await client.wait_for('message', check=check, timeout=30.0)
-                if int(guess.content) == answer:
-                    await message.channel.send('✅ Correct!')
-                else:
-                    await message.channel.send(f'❌ Incorrect. The right answer was {answer}.\n📝 **Explanation:** {explanation}')
-                await question_message.edit(content=f"{qs}\n✅ **Correct Answer:** {answer}")
-            except asyncio.TimeoutError:
-                await message.channel.send('⏰ Timeout!')
-                await question_message.edit(content=f"{qs}\n⏰ **Timed out.** Correct answer was {answer}")
-                
-        except discord.errors.HTTPException as e:
-            print(f"Discord Embed Error: {e}")
-            question_message = await message.channel.send(qs)
-            
-            # You might want to handle answer checking here too if using plain text
-
-client.run(os.getenv('DISCORD_TOKEN'))
+bot.run(os.getenv('DISCORD_TOKEN'))
