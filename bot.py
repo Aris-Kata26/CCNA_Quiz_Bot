@@ -42,8 +42,7 @@ def get_question(level):
         if points is not None:
             qs += f"\n💡 **Points:** {points}"
 
-        image_url = question_data.get('image_url', None)  # <-- Get the image URL
-
+        image_url = question_data.get('image_url', None)
         return (qs, answer, correct_explanation, image_url)
 
     except requests.exceptions.RequestException as e:
@@ -71,26 +70,30 @@ async def on_message(message):
             return
 
         qs, answer, explanation, image_url = get_question(level)
-
-        if image_url:
-            embed = discord.Embed(
-                title="📷 Network Question",
-                description=qs,
-                color=discord.Color.blue()  # You can change this to any other color
-            )
+        
+        # Create embed regardless of whether there's an image
+        embed = discord.Embed(
+            title="📘 Network Question",
+            description=qs,
+            color=discord.Color.blue()
+        )
+        
+        # Set author info
+        embed.set_author(
+            name=message.author.display_name,
+            icon_url=message.author.avatar.url if message.author.avatar else None
+        )
+        
+        # Add image if available
+        if image_url and isinstance(image_url, str) and image_url.startswith("http"):
             embed.set_image(url=image_url)
-            embed.set_footer(text="React fast! Answer within 30 seconds.")
-            embed.timestamp = message.created_at  # Optional: adds timestamp to the embed
+        
+        embed.timestamp = message.created_at
 
-            # Optional: Add a thumbnail (like a logo)
-            # embed.set_thumbnail(url="https://yourdomain.com/logo.png")
-
-            # Optional: Show who requested
-            embed.set_author(name=message.author.display_name, icon_url=message.author.avatar.url if message.author.avatar else None)
-
+        try:
             question_message = await message.channel.send(embed=embed)
-
-        else:
+        except discord.errors.HTTPException as e:
+            print(f"Discord Embed Error: {e}")
             question_message = await message.channel.send(qs)
 
         if answer is None:
@@ -108,7 +111,6 @@ async def on_message(message):
             await question_message.edit(content=f"{qs}\n✅ **Correct Answer:** {answer}")
         except asyncio.TimeoutError:
             await message.channel.send('⏰ Timeout!')
-            await question_message.edit(content=f"{qs}\n⏰ **Timed out.** Correct answer was {answer}.")
-
+            await question_message.edit(content=f"{qs}\n⏰ **Timed out.** Correct answer was {answer}")
 
 client.run(os.getenv('DISCORD_TOKEN'))
