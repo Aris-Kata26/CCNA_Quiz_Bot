@@ -23,7 +23,7 @@ def get_question(level):
 
         if not question_data or not isinstance(question_data, dict):
             print("DEBUG - Invalid API response: not a dictionary")
-            return ("⚠️ Invalid API response.", None, None)
+            return ("⚠️ Invalid API response.", None, None, None)
 
         qs = f"📘 **Question:**\n{question_data['title']}\n\n"
         answer = None
@@ -36,17 +36,19 @@ def get_question(level):
 
         if answer is None:
             print("DEBUG - No correct answer found")
-            return ("⚠️ No correct answer found.", None, None)
+            return ("⚠️ No correct answer found.", None, None, None)
 
         points = question_data.get('points', None)
         if points is not None:
             qs += f"\n💡 **Points:** {points}"
 
-        return (qs, answer, correct_explanation)
+        image_url = question_data.get('image_url', None)  # <-- Get the image URL
+
+        return (qs, answer, correct_explanation, image_url)
 
     except requests.exceptions.RequestException as e:
         print(f"API Error: {e}")
-        return ("⚠️ Could not fetch question. Try again later.", None, None)
+        return ("⚠️ Could not fetch question. Try again later.", None, None, None)
 
 @client.event
 async def on_ready():
@@ -68,8 +70,28 @@ async def on_message(message):
             await message.channel.send("⚠️ Please specify the CCNA level (1, 2, or 3).")
             return
 
-        qs, answer, explanation = get_question(level)
-        question_message = await message.channel.send(qs)
+        qs, answer, explanation, image_url = get_question(level)
+
+        if image_url:
+            embed = discord.Embed(
+                title="📷 Network Question",
+                description=qs,
+                color=discord.Color.blue()  # You can change this to any other color
+            )
+            embed.set_image(url=image_url)
+            embed.set_footer(text="React fast! Answer within 30 seconds.")
+            embed.timestamp = message.created_at  # Optional: adds timestamp to the embed
+
+            # Optional: Add a thumbnail (like a logo)
+            # embed.set_thumbnail(url="https://yourdomain.com/logo.png")
+
+            # Optional: Show who requested
+            embed.set_author(name=message.author.display_name, icon_url=message.author.avatar.url if message.author.avatar else None)
+
+            question_message = await message.channel.send(embed=embed)
+
+        else:
+            question_message = await message.channel.send(qs)
 
         if answer is None:
             return
@@ -87,5 +109,6 @@ async def on_message(message):
         except asyncio.TimeoutError:
             await message.channel.send('⏰ Timeout!')
             await question_message.edit(content=f"{qs}\n⏰ **Timed out.** Correct answer was {answer}.")
+
 
 client.run(os.getenv('DISCORD_TOKEN'))

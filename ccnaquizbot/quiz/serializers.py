@@ -44,7 +44,14 @@ class QuestionSerializer(serializers.ModelSerializer):
 
     def get_image_url(self, obj):
         if obj.image:
-            # For Cloudinary, just return the URL directly
-            url = obj.image.url
+            # Get the base Cloudinary URL
+            url = str(obj.image.url)
             
-            # Add Cloud
+            # Add Cloudinary transformations for optimized delivery
+            optimized_url = url.replace('/upload/', '/upload/q_auto,f_auto/')
+            
+            # Optional: Add width parameter if you want to control size
+            # optimized_url = url.replace('/upload/', '/upload/w_600,q_auto,f_auto/')
+            
+            return optimized_url
+        return None
