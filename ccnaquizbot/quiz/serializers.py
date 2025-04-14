@@ -24,10 +24,10 @@ class QuestionSerializer(serializers.ModelSerializer):
             'points',
             'ccna_level',
             'ccna_level_display',
-            'image_url', 
+            'image_url',
             'is_active',
-            'answers', 
-            'created_at', 
+            'answers',
+            'created_at',
             'updated_at',
         ]
         extra_kwargs = {
@@ -35,23 +35,23 @@ class QuestionSerializer(serializers.ModelSerializer):
             'points': {'required': False}
         }
 
-    def get_answers(self, obj):
-        answers = obj.answers.filter(is_active=True)
-        return AnswerSerializer(answers, many=True).data if answers else []
-
     def get_ccna_level_display(self, obj):
         return obj.get_ccna_level_display()
 
     def get_image_url(self, obj):
-        if obj.image:
-            # Get the base Cloudinary URL
-            url = str(obj.image.url)
-            
-            # Add Cloudinary transformations for optimized delivery
-            optimized_url = url.replace('/upload/', '/upload/q_auto,f_auto/')
-            
-            # Optional: Add width parameter if you want to control size
-            # optimized_url = url.replace('/upload/', '/upload/w_600,q_auto,f_auto/')
-            
-            return optimized_url
+        if obj.image and hasattr(obj.image, 'url'):
+            try:
+                raw_url = str(obj.image.url)
+                print(f"Raw image URL: {raw_url}")  # Debug log
+                # Ensure URL is absolute
+                if not raw_url.startswith(('http://', 'https://')):
+                    raw_url = f"https:{raw_url}" if raw_url.startswith('//') else f"https://res.cloudinary.com/{os.environ.get('CLOUDINARY_CLOUD_NAME')}/image/upload/{raw_url}"
+                # Add Cloudinary optimizations
+                optimized_url = raw_url.replace('/upload/', '/upload/q_auto,f_auto/')
+                print(f"Optimized URL: {optimized_url}")  # Debug log
+                return optimized_url
+            except Exception as e:
+                print(f"Error processing image URL: {e}")
+                return None
+        print("No image or invalid image field")
         return None
