@@ -2,6 +2,10 @@ from django.db import models
 from django.utils.translation import gettext as _
 from django.core.exceptions import ValidationError
 from cloudinary.models import CloudinaryField
+import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Question(models.Model):
     LEVEL = (
@@ -31,27 +35,23 @@ class Question(models.Model):
     def __str__(self):
         return self.title
     
-    def get_original_image_url(self):
-        """Returns the exact Cloudinary URL needed for Discord"""
-        if not self.image:
-            return None
-            
-        if isinstance(self.image, str) and self.image.startswith('http'):
-            return self.image
-            
-        if hasattr(self.image, 'version'):
-            return (
-                f"https://res.cloudinary.com/{self.image.metadata['cloud_name']}/"
-                f"image/upload/{self.image.version}/{self.image.public_id}.{self.image.format}"
-            )
-        return self.image.url if hasattr(self.image, 'url') else None
-    
+    def get_ccna_level_display(self):
+        """Return human-readable CCNA level for serializer"""
+        return dict(self.LEVEL).get(self.ccna_level, _('Unknown'))
+
     def clean(self):
         """Validate model before saving"""
         if self.points < 0:
             raise ValidationError(_("Points cannot be negative"))
         
-        if self.pk and not self.answers.filter(is_correct=True).exists():
+        # Validate image public ID if present
+        if self.image:
+            image_str = str(self.image).strip()
+            if not image_str or '/' in image_str or len(image_str) < 3:
+                raise ValidationError(_("Invalid image public ID: must be a valid Cloudinary public ID"))
+
+        # Ensure at least one correct answer when answers exist
+        if hasattr(self, 'answers') and self.answers.exists() and not self.answers.filter(is_correct=True).exists():
             raise ValidationError(_("Question must have at least one correct answer"))
 
 class Answer(models.Model):
@@ -80,11 +80,11 @@ class Answer(models.Model):
         ]
         
     def __str__(self):
-        return f"{self.answer[:50]}..." if len(self.answer) > 50 else self.answer
+        return f"{self.question.title[:30]}... - {self.answer[:30]}" if len(self.answer) > 30 else f"{self.question.title[:30]} - {self.answer}"
 
     def clean(self):
-        if (self.is_correct and 
-            self.question and 
-            self.question.pk and
-            self.question.answers.filter(is_correct=True).exclude(pk=self.pk).exists()):
-            raise ValidationError(_("Another correct answer already exists for this question"))
+        """Validate answer before saving"""
+        if self.is_correct:
+            existing_correct = self.question.answers.filter(is_correct=True).exclude(pk=self.pk)
+            if existing_correct.exists():
+                raise ValidationError(_("Another correct answer already exists for this question"))
