@@ -122,16 +122,16 @@ async def ccna_quiz(ctx, level: int = None):
             if int(guess.content) == answer:
                 points = 10  # Assign points for a correct answer (adjust as needed)
                 await update_user_score(ctx.author.id, ctx.author.name, points)  # Await the async function
-                await ctx.send(f'✅ Correct! You earned {points} points.')
+                await ctx.send(f'✅ Correct! You earned {points} points.\n📝 **Explanation:** {explanation}')
             else:
                 await ctx.send(f'❌ Incorrect. The right answer was {answer}.\n📝 **Explanation:** {explanation}')
             # Update embed with correct answer
-            embed.description = f"{qs}\n✅ **Correct Answer:** {answer}"
+            embed.description = f"{qs}\n✅ **Correct Answer:** {answer}\n📝 **Explanation:** {explanation}"
             await question_message.edit(embed=embed)
         except asyncio.TimeoutError:
             await ctx.send('⏰ Timeout!')
             # Update embed with timeout message
-            embed.description = f"{qs}\n⏰ **Timed out.** Correct answer was {answer}"
+            embed.description = f"{qs}\n⏰ **Timed out.** Correct answer was {answer}\n📝 **Explanation:** {explanation}"
             await question_message.edit(embed=embed)
             
     except discord.errors.HTTPException as e:
