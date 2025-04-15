@@ -2,27 +2,30 @@ import discord
 import requests
 import asyncio
 import os
+import django
 from dotenv import load_dotenv
+from asgiref.sync import sync_to_async
+
+# Load environment variables
+load_dotenv()
+
+# Set up Django settings
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ccnaquizbot.settings')
+django.setup()
+
 from discord.ext import commands
 from ccnaquizbot.score.models import Score
 
+@sync_to_async
 def update_user_score(discord_id, username, points):
     """
     Update the user's score in the database.
     """
+    print(f"Updating score for Discord ID: {discord_id}, Username: {username}, Points: {points}")  # Debug
     score, created = Score.objects.get_or_create(discord_id=discord_id, defaults={'name': username, 'point': 0})
     score.point += points
     score.name = username  # Update username in case it changes
     score.save()
-# Load environment variables
-load_dotenv()
-
-# Define intents
-intents = discord.Intents.default()
-intents.message_content = True
-
-# Initialize bot with commands
-bot = commands.Bot(command_prefix='$', intents=intents)
 
 def get_question(level):
     url = f"https://polar-forest-95759-e6c7774f6065.herokuapp.com/api/random/?level={level}"
@@ -60,6 +63,13 @@ def get_question(level):
     except requests.exceptions.RequestException as e:
         print(f"API Error: {e}")
         return ("⚠️ Could not fetch question. Try again later.", None, None, None)
+
+# Define intents
+intents = discord.Intents.default()
+intents.message_content = True
+
+# Initialize bot with commands
+bot = commands.Bot(command_prefix='$', intents=intents)
 
 @bot.event
 async def on_ready():
@@ -110,7 +120,9 @@ async def ccna_quiz(ctx, level: int = None):
         try:
             guess = await bot.wait_for('message', check=check, timeout=30.0)
             if int(guess.content) == answer:
-                await ctx.send('✅ Correct!')
+                points = 10  # Assign points for a correct answer (adjust as needed)
+                await update_user_score(ctx.author.id, ctx.author.name, points)  # Await the async function
+                await ctx.send(f'✅ Correct! You earned {points} points.')
             else:
                 await ctx.send(f'❌ Incorrect. The right answer was {answer}.\n📝 **Explanation:** {explanation}')
             # Update embed with correct answer
@@ -149,5 +161,4 @@ async def leaderboard(ctx):
         print(f"API Error: {e}")
         await ctx.send("⚠️ Could not fetch the leaderboard. Please try again later.")
 
-        
 bot.run(os.getenv('DISCORD_TOKEN'))
