@@ -4,7 +4,16 @@ import asyncio
 import os
 from dotenv import load_dotenv
 from discord.ext import commands
+from ccnaquizbot.score.models import Score
 
+def update_user_score(discord_id, username, points):
+    """
+    Update the user's score in the database.
+    """
+    score, created = Score.objects.get_or_create(discord_id=discord_id, defaults={'name': username, 'point': 0})
+    score.point += points
+    score.name = username  # Update username in case it changes
+    score.save()
 # Load environment variables
 load_dotenv()
 
@@ -117,4 +126,28 @@ async def ccna_quiz(ctx, level: int = None):
         print(f"Discord Embed Error: {e}")
         await ctx.send(qs)
 
+@bot.command(name='leaderboard')
+async def leaderboard(ctx):
+    """
+    Fetch and display the leaderboard from the Django API.
+    """
+    try:
+        api_url = "http://127.0.0.1:8000/score/leaderboard/"
+        response = requests.get(api_url, timeout=5)
+        response.raise_for_status()
+        leaderboard = response.json()
+
+        if leaderboard:
+            # Format the leaderboard for display
+            leaderboard_message = "**🏆 Leaderboard:**\n"
+            for rank, entry in enumerate(leaderboard, start=1):
+                leaderboard_message += f"{rank}. {entry['name']} - {entry['points']} points\n"
+            await ctx.send(leaderboard_message)
+        else:
+            await ctx.send("The leaderboard is currently empty. Be the first to score!")
+    except requests.exceptions.RequestException as e:
+        print(f"API Error: {e}")
+        await ctx.send("⚠️ Could not fetch the leaderboard. Please try again later.")
+
+        
 bot.run(os.getenv('DISCORD_TOKEN'))

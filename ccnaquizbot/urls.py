@@ -15,7 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from .quiz.views import get_ccna_question
 from django.conf import settings
 from django.conf.urls.static import static
@@ -23,6 +23,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/random/', get_ccna_question, name='random'),
+    path('score/', include('ccnaquizbot.score.urls')),
 ]
 
 if settings.DEBUG and not hasattr(settings, 'CLOUDINARY_STORAGE'):

@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'cloudinary',
     'cloudinary_storage',
+    'ccnaquizbot.score',
 ]
 
 MIDDLEWARE = [
