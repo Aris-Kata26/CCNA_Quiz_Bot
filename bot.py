@@ -118,7 +118,7 @@ async def ccna_quiz(ctx, level: int = None):
             return m.author == ctx.author and m.content.isdigit() and m.channel == ctx.channel
 
         try:
-            guess = await bot.wait_for('message', check=check, timeout=30.0)
+            guess = await bot.wait_for('message', check=check, timeout=60.0)
             if int(guess.content) == answer:
                 points = 10  # Assign points for a correct answer (adjust as needed)
                 await update_user_score(ctx.author.id, ctx.author.name, points)  # Await the async function
