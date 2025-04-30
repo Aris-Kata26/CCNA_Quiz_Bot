@@ -5,6 +5,9 @@ import os
 import django
 from dotenv import load_dotenv
 from asgiref.sync import sync_to_async
+from discord.ext import tasks
+from datetime import datetime, timezone
+timestamp=datetime.now(timezone.utc)
 
 # Load environment variables
 load_dotenv()
@@ -74,6 +77,11 @@ bot = commands.Bot(command_prefix='$', intents=intents)
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}')
+    if not post_daily_quiz.is_running():
+        print("DEBUG - Starting post_daily_quiz task")
+        post_daily_quiz.start()
+    else:
+        print("DEBUG - post_daily_quiz task is already running")
 
 @bot.command(name='ccna')
 async def ccna_quiz(ctx, level: int = None):
@@ -160,5 +168,63 @@ async def leaderboard(ctx):
     except requests.exceptions.RequestException as e:
         print(f"API Error: {e}")
         await ctx.send("⚠️ Could not fetch the leaderboard. Please try again later.")
+
+DAILY_QUIZ_CHANNEL_ID = int(os.getenv("DAILY_QUIZ_CHANNEL_ID"))
+
+@tasks.loop(hours=24)  # Run this task every 24 hours
+async def post_daily_quiz():
+    """
+    Posts a daily CCNA question in a specific channel and handles user responses.
+    """
+    # Fetch the channel
+    channel = bot.get_channel(DAILY_QUIZ_CHANNEL_ID)
+    if not channel:
+        print(f"ERROR: Could not find channel with ID {DAILY_QUIZ_CHANNEL_ID}")
+        return
+    print(f"DEBUG - Found channel: {channel.name}")
+
+    # Fetch a random question
+    qs, answer, explanation, image_url = get_question(level=1)  # Default to Level 1 for daily quizzes
+
+    # Create embed for the question
+    embed = discord.Embed(
+        title="📘 Daily CCNA Quiz",
+        description=qs,
+        color=discord.Color.green(),
+        timestamp=datetime.now(timezone.utc)  # Use timezone-aware datetime
+    )
+    embed.set_footer(text="Answer by replying in this channel!")
+
+    # Add image if available
+    if image_url and isinstance(image_url, str) and image_url.lower().startswith(('http://', 'https://')):
+        embed.set_image(url=image_url)
+
+    # Post the question
+    try:
+        question_message = await channel.send(embed=embed)
+        print("DEBUG - Successfully posted the daily quiz")
+    except discord.errors.Forbidden:
+        print("ERROR: Bot does not have permission to send messages in the channel")
+        return
+    except discord.errors.HTTPException as e:
+        print(f"ERROR: Failed to send message: {e}")
+        return
+
+    # Wait for user responses
+    def check(m):
+        return m.channel == channel and m.content.isdigit() and not m.author.bot
+
+    try:
+        guess = await bot.wait_for('message', check=check, timeout=3600.0)  # Wait for 1 hour
+        if int(guess.content) == answer:
+            points = 5  # Assign points for the daily quiz
+            await update_user_score(guess.author.id, guess.author.name, points)
+            await channel.send(f"✅ {guess.author.mention}, Correct! You earned {points} points.\n📝 **Explanation:** {explanation}")
+        else:
+            await channel.send(f"❌ {guess.author.mention}, Incorrect. The correct answer was {answer}.\n📝 **Explanation:** {explanation}")
+    except asyncio.TimeoutError:
+        await channel.send("⏰ Time's up! No one answered the question.")
+        embed.description += f"\n⏰ **Time's up!** The correct answer was {answer}.\n📝 **Explanation:** {explanation}"
+        await question_message.edit(embed=embed)
 
 bot.run(os.getenv('DISCORD_TOKEN'))
