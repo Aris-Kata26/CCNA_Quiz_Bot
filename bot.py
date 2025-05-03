@@ -32,24 +32,26 @@ def update_user_score(discord_id, username, points):
     """
     Update the user's score in the database.
     """
-    print(f"Updating score for Discord ID: {discord_id}, Username: {username}, Points: {points}")  # Debug
+    print(f"Updating score for Discord ID: {discord_id}, Username: {username}, Points: {points}")  # Debug log
     score, created = Score.objects.get_or_create(discord_id=discord_id, defaults={'name': username, 'point': 0})
-    score.point += points
+    score.point += points # Add points to the user's score.
     score.name = username  # Update username in case it changes
-    score.save()
+    score.save() # Save the updated score to the database.
 
 def get_question(level):
     url = f"https://polar-forest-95759-e6c7774f6065.herokuapp.com/api/random/?level={level}"
-    print(f"DEBUG - Attempting to call URL: {url}")
+    print(f"DEBUG - Attempting to call URL: {url}") # Debug log
     try:
-        response = requests.get(url, timeout=5)
-        response.raise_for_status()
-        question_data = response.json()
+        response = requests.get(url, timeout=5) # Make an HTTP GET request to the API.
+        response.raise_for_status() # Raise an exception for HTTP errors.
+        question_data = response.json() #Parse the JSON response.
 
+        # Validate the API response.
         if not question_data or not isinstance(question_data, dict):
             print("DEBUG - Invalid API response: not a dictionary")
             return ("⚠️ Invalid API response.", None, None, None)
 
+        # Format the question and extract the correct answer and explanation.
         qs = f"📘 **Question:**\n{question_data['title']}\n\n"
         answer = None
         correct_explanation = None
@@ -59,10 +61,12 @@ def get_question(level):
                 answer = idx
                 correct_explanation = item.get('explanation', 'No explanation provided.')
 
+        # Handle cases where no correct answer is found.
         if answer is None:
             print("DEBUG - No correct answer found")
             return ("⚠️ No correct answer found.", None, None, None)
 
+        # Include points and image URL if available.
         points = question_data.get('points')
         if points is not None:
             qs += f"\n💡 **Points:** {points}"
