@@ -1,14 +1,23 @@
-*.pyc
-__pycache__/
-media
-.Python
-.venv/
-venv/
-key.txt
-.env
+# Ignore compiled Python files
+*.pyc  # Compiled Python bytecode files
 
-# Secret files
-*.env*
-*.secret*
-config.py
-credentials.json
+# Ignore Python cache directories
+__pycache__/  # Directory for Python's compiled bytecode cache
+
+# Ignore media files (if applicable)
+media  # Directory for uploaded media files (e.g., images, videos)
+
+# Ignore Python virtual environment directories
+.Python  # Virtual environment marker file
+.venv/   # Virtual environment directory
+venv/    # Alternative virtual environment directory name
+
+# Ignore sensitive files
+key.txt  # File containing sensitive keys or tokens
+.env     # Environment variables file
+
+# Ignore secret files
+*.env*       # Any file with `.env` in its name
+*.secret*    # Any file with `.secret` in its name
+config.py    # Configuration file that may contain sensitive data
+credentials.json  # JSON file for storing credentials

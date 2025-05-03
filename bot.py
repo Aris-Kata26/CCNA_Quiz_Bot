@@ -1,29 +1,32 @@
-import discord
-import requests
-import asyncio
-import os
-import django
-from dotenv import load_dotenv
-from asgiref.sync import sync_to_async
-from discord.ext import tasks
-from datetime import datetime, timezone
-from PIL import Image, ImageDraw, ImageFont
-import io
-import random
+import discord  # Main library for interacting with the Discord API.
+import requests  # For making HTTP requests to external APIs.
+import asyncio  # For asynchronous programming.
+import os  # For interacting with the operating system (e.g., environment variables).
+import django  # For integrating Django models and database operations.
+from dotenv import load_dotenv  # For loading environment variables from a `.env` file.
+from asgiref.sync import sync_to_async  # For running Django ORM queries asynchronously.
+from discord.ext import tasks, commands  # For creating tasks and bot commands.
+from datetime import datetime, timezone  # For working with timestamps and time zones.
+from PIL import Image, ImageDraw, ImageFont  # For creating flashcard images.
+import io  # For handling in-memory file operations.
+import random  # For selecting random motivational messages and reminders.
+
 
 timestamp=datetime.now(timezone.utc)
 
 
-# Load environment variables
+# Load environment variables from the `.env` file.
 load_dotenv()
 
-# Set up Django settings
+# Set up Django settings for database integration.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ccnaquizbot.settings')
 django.setup()
 
 from discord.ext import commands
+# Import the Score model from the Django app.
 from ccnaquizbot.score.models import Score
 
+# Function to update the user's score in the database.
 @sync_to_async
 def update_user_score(discord_id, username, points):
     """
