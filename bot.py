@@ -784,4 +784,6 @@ async def help_command(ctx, topic: str = None):
         else:
             await ctx.send(f"⚠️ Sorry, I don't have an explanation for `{topic}`. Use `$help` to see available topics.")
 
+# Use the token from the .env file
+DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 bot.run(os.getenv('DISCORD_TOKEN'))
