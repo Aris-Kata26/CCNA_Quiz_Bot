@@ -9,6 +9,7 @@ from discord.ext import tasks
 from datetime import datetime, timezone
 from PIL import Image, ImageDraw, ImageFont
 import io
+import random
 
 timestamp=datetime.now(timezone.utc)
 
@@ -75,12 +76,89 @@ def get_question(level):
 intents = discord.Intents.default()
 intents.message_content = True
 
-# Initialize bot with commands
-bot = commands.Bot(command_prefix='$', intents=intents)
+# Initialize bot with commands and disable the default help command
+bot = commands.Bot(command_prefix='$', intents=intents, help_command=None)
+
+
+# Motivational messages
+MOTIVATIONAL_MESSAGES = [
+    "🌟 Keep pushing forward! Every small step counts toward success.",
+    "📘 Remember: Consistency is key. Study a little every day!",
+    "💡 'The beautiful thing about learning is that no one can take it away from you.' – B.B. King",
+    "🚀 Believe in yourself! You’re capable of amazing things.",
+    "📚 'Success is the sum of small efforts, repeated day in and day out.' – Robert Collier",
+]
+# Load channel IDs from .env
+REMINDERS_STUDY_GROUP_CHANNEL_ID = int(os.getenv("REMINDERS_STUDY_GROUP_CHANNEL_ID"))
+
+# Study reminders
+STUDY_REMINDERS = [
+    "🔔 Don’t forget to review your weak topics today!",
+    "📖 Have you completed your practice tests for the day?",
+    "📝 Make sure to revise your notes and flashcards!",
+    "💻 Spend some time practicing subnetting or troubleshooting today.",
+    "📘 Join your study group and discuss challenging topics together!",
+]
+
+# Task to send motivational messages and reminders
+@tasks.loop(hours=6)  # Adjust the interval as needed
+async def send_motivational_messages():
+    channel = bot.get_channel(REMINDERS_STUDY_GROUP_CHANNEL_ID)
+    if not channel:
+        print(f"ERROR: Could not find channel with ID {REMINDERS_STUDY_GROUP_CHANNEL_ID}")
+        return
+    print(f"DEBUG - Found channel: {channel.name}")
+    """
+    Sends motivational messages and study reminders to the reminders_study_group channel.
+    """
+    channel = bot.get_channel(REMINDERS_STUDY_GROUP_CHANNEL_ID)
+    if not channel:
+        print(f"ERROR: Could not find channel with ID {"REMINDERS_STUDY_GROUP_CHANNEL_ID"}")
+        return
+
+    # Send a random motivational message
+    motivational_message = random.choice(MOTIVATIONAL_MESSAGES)
+    await channel.send(motivational_message)
+
+    # Send a random study reminder
+    study_reminder = random.choice(STUDY_REMINDERS)
+    await channel.send(study_reminder)
+
+# Assign students to study groups based on weak topics
+@bot.command(name='assign_groups')
+async def assign_study_groups(ctx):
+    """
+    Assigns students to study groups based on weak topics.
+    """
+    # Example data structure for tracking weak topics
+    student_performance = {
+        "Student1": ["Subnetting", "Routing"],
+        "Student2": ["Switching", "Security"],
+        "Student3": ["Routing", "Security"],
+        "Student4": ["Subnetting", "Switching"],
+    }
+
+    # Group students by weak topics
+    study_groups = {}
+    for student, weak_topics in student_performance.items():
+        for topic in weak_topics:
+            if topic not in study_groups:
+                study_groups[topic] = []
+            study_groups[topic].append(student)
+
+    # Send the study group assignments to the channel
+    channel = bot.get_channel(REMINDERS_STUDY_GROUP_CHANNEL_ID)
+    if not channel:
+        print(f"ERROR: Could not find channel with ID {REMINDERS_STUDY_GROUP_CHANNEL_ID}")
+        return
+
+    await channel.send("📋 **Study Group Assignments Based on Weak Topics:**")
+    for topic, students in study_groups.items():
+        await channel.send(f"**{topic}:** {', '.join(students)}")
 
 @bot.event
 async def on_ready():
-    print(f'Logged in as {bot.user}')
+    print(f"Logged in as {bot.user}")
     if not post_daily_quiz.is_running():
         print("DEBUG - Starting post_daily_quiz task")
         post_daily_quiz.start()
@@ -92,6 +170,78 @@ async def on_ready():
         study_sessions.start()
     else:
         print("DEBUG - study_sessions task is already running")
+
+    if not send_motivational_messages.is_running():
+        print("DEBUG - Starting send_motivational_messages task")
+        send_motivational_messages.start()
+    else:
+        print("DEBUG - send_motivational_messages task is already running")
+
+@bot.command(name='quiz')
+async def private_quiz(ctx, mode: str = None, level: int = None):
+    """
+    Allows students to take quizzes privately via DM.
+    Usage: $quiz dm <level>
+    """
+    if mode != "dm":
+        await ctx.send("⚠️ Invalid mode. Use `$quiz dm <level>` to take the quiz privately.")
+        return
+
+    if level not in [1, 2, 3]:
+        await ctx.send("⚠️ Invalid level. Please specify level 1, 2, or 3. Example: `$quiz dm 2`")
+        return
+
+    # Send a DM to the user
+    try:
+        await ctx.author.send("📘 **Welcome to the Private Quiz!**\nYou will receive questions here. Answer them within 1 minute.")
+    except discord.Forbidden:
+        await ctx.send("⚠️ I cannot send you a DM. Please enable DMs from server members and try again.")
+        return
+
+    score = 0
+    incorrect_questions = []
+
+    # Fetch 5 questions for the specified level
+    for _ in range(5):  # Limit to 5 questions
+        qs, answer, explanation, image_url = get_question(level)
+
+        # Send the question as an embed
+        embed = discord.Embed(
+            title="📘 Network Question",
+            description=qs,
+            color=discord.Color.blue()
+        )
+        if image_url and isinstance(image_url, str) and image_url.lower().startswith(('http://', 'https://')):
+            embed.set_image(url=image_url)
+
+        await ctx.author.send(embed=embed)
+
+        def check(m):
+            return m.author == ctx.author and isinstance(m.channel, discord.DMChannel) and m.content.isdigit()
+
+        try:
+            # Wait for the user's response (1 minute timeout)
+            user_response = await bot.wait_for('message', check=check, timeout=60.0)
+
+            if int(user_response.content) == answer:
+                await ctx.author.send("✅ Correct!")
+                score += 1
+            else:
+                await ctx.author.send(f"❌ Incorrect! The correct answer was: **{answer}**\n📝 **Explanation:** {explanation}")
+                incorrect_questions.append(qs)
+
+        except asyncio.TimeoutError:
+            await ctx.author.send(f"⏰ Time's up! The correct answer was: **{answer}**\n📝 **Explanation:** {explanation}")
+            incorrect_questions.append(qs)
+
+    # Provide the final score and areas of improvement
+    await ctx.author.send(f"**Quiz Complete!**\nYour score: {score}/5")
+    if incorrect_questions:
+        await ctx.author.send("**Areas of Improvement:**")
+        for q in incorrect_questions:
+            await ctx.author.send(f"🔸 {q}")
+    else:
+        await ctx.author.send("🎉 Great job! You answered all questions correctly!")
 
 @bot.command(name='ccna')
 async def ccna_quiz(ctx, level: int = None):
@@ -547,5 +697,84 @@ def create_flashcard_image(question, answer, card_number):
     draw.text((10, 200), f"Answer:\n{answer}", fill=text_color, font=font)
 
     return image
+# Load the channel ID for resources_and_resources from .env
+RESOURCES_CHANNEL_ID = int(os.getenv("RESOURCES_CHANNEL_ID"))
+
+@bot.command(name='resources')
+async def resources(ctx):
+    """
+    Provides links to official Cisco learning materials and YouTube tutorials.
+    Usage: $resources
+    """
+    # Ensure the command is used in the correct channel
+    if ctx.channel.id != RESOURCES_CHANNEL_ID:
+        await ctx.send(f"⚠️ Please use this command in the `resources_and_resources` channel.")
+        return
+
+    # Send resources
+    await ctx.send(
+        "**📚 Official Cisco Learning Materials and Tutorials:**\n"
+        "1. [Cisco Networking Academy](https://www.netacad.com/)\n"
+        "2. [Cisco Certification Roadmap](https://learningnetwork.cisco.com/s/certification-roadmaps)\n"
+        "3. [Cisco Packet Tracer](https://www.netacad.com/courses/packet-tracer)\n"
+        "4. [Cisco YouTube Channel](https://www.youtube.com/user/cisconetworks)\n"
+        "5. [NetworkChuck YouTube Channel](https://www.youtube.com/c/NetworkChuck)\n"
+        "6. [David Bombal YouTube Channel](https://www.youtube.com/c/DavidBombal)\n"
+        "7. [Free CCNA Study Guide](https://www.freeccnastudyguide.com/)\n"
+    )
+
+
+@bot.command(name='help')
+async def help_command(ctx, topic: str = None):
+    """
+    Explains networking concepts and lists available bot commands.
+    Usage: $help <topic>
+    """
+    # Ensure the command is used in the correct channel
+    if ctx.channel.id != RESOURCES_CHANNEL_ID:
+        await ctx.send(f"⚠️ Please use this command in the `resources_and_support` channel.")
+        return
+
+    # Predefined explanations for networking concepts
+    explanations = {
+        "subnetting": "Subnetting is the process of dividing a network into smaller, more manageable sub-networks. It helps improve network performance and security.",
+        "osi": "The OSI model is a conceptual framework used to understand network interactions. It has 7 layers: Physical, Data Link, Network, Transport, Session, Presentation, and Application.",
+        "tcp/ip": "The TCP/IP model is a simplified version of the OSI model with 4 layers: Application, Transport, Internet, and Network Access.",
+        "nat": "NAT (Network Address Translation) is a method used to map private IP addresses to a public IP address to enable devices on a private network to access the internet.",
+        "dns": "DNS (Domain Name System) translates human-readable domain names (e.g., google.com) into IP addresses that computers use to identify each other on the network.",
+    }
+
+    if topic is None:
+        # List of available commands
+        commands_list = (
+            "**🛠️ Available Commands:**\n"
+            "1. `$resources` - Provides links to official Cisco learning materials and YouTube tutorials.\n"
+            "2. `$help <topic>` - Explains networking concepts. Use `$help` to see available topics.\n"
+            "3. `$quiz dm <level>` - Take a private quiz via DM. Specify the level (1, 2, or 3).\n"
+            "4. `$ccna <level>` - Answer a CCNA question in the current channel. Specify the level (1, 2, or 3).\n"
+            "5. `$test <level>` - Simulate a CCNA test with 5 questions. Specify the level (1, 2, or 3).\n"
+            "6. `$leaderboard` - View the leaderboard of top scorers.\n"
+            "7. `$assign_groups` - Assign students to study groups based on weak topics.\n"
+        )
+
+        # Networking topics
+        topics_list = (
+            "**📝 Available Topics for `$help <topic>`:**\n"
+            "1. `subnetting`\n"
+            "2. `osi`\n"
+            "3. `tcp/ip`\n"
+            "4. `nat`\n"
+            "5. `dns`\n"
+            "Use `$help <topic>` to learn more about a specific topic. Example: `$help subnetting`"
+        )
+
+        await ctx.send(f"{commands_list}\n\n{topics_list}")
+    else:
+        # Provide explanation for the requested topic
+        explanation = explanations.get(topic.lower())
+        if explanation:
+            await ctx.send(f"**📘 {topic.capitalize()} Explanation:**\n{explanation}")
+        else:
+            await ctx.send(f"⚠️ Sorry, I don't have an explanation for `{topic}`. Use `$help` to see available topics.")
 
 bot.run(os.getenv('DISCORD_TOKEN'))
