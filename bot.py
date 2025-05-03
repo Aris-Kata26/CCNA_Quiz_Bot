@@ -786,4 +786,5 @@ async def help_command(ctx, topic: str = None):
 
 # Use the token from the .env file
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
+
 bot.run(os.getenv('DISCORD_TOKEN'))
